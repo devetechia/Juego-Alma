@@ -1,19 +1,20 @@
 {
-  "name": "super-hero-bros",
+  "name": "alma-aventura-familiar",
   "version": "1.0.0",
-  "description": "Juego estilo Mario Bros con Phaser 3",
-  "main": "index.html",
+  "description": "Alma - Aventura Familiar: juego de plataformas para Alma (6 años). Protagonista: Alma. Enemigos: la familia.",
+  "type": "module",
+  "main": "src/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "poses": "node scripts/extract-poses.js",
+    "art": "node scripts/make-art.js"
   },
   "dependencies": {
     "phaser": "^3.80.1"
   },
   "devDependencies": {
-    "jimp": "^1.6.1",
-    "pngjs": "^7.0.0",
     "sharp": "^0.35.3",
     "vite": "^5.0.0"
   }
