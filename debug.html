@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Sprite Debugger</title>
+    <style>
+        body {
+            background: #333;
+            color: white;
+            font-family: sans-serif;
+            text-align: center;
+        }
+
+        canvas {
+            border: 2px solid red;
+            background: repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Sprite Debugger</h1>
+    <p>This page displays your 'sprites.png' as the game sees it.</p>
+    <p id="status">Loading...</p>
+    <canvas id="debugCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('debugCanvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.src = 'sprites.png';
+
+        img.onload = () => {
+            document.getElementById('status').innerText = `Loaded! Size: ${img.width}x${img.height}`;
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            // Draw grid overlay for 32x32
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            for (let x = 0; x < img.width; x += 32) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, img.height); ctx.stroke();
+            }
+            for (let y = 0; y < img.height; y += 32) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(img.width, y); ctx.stroke();
+            }
+        };
+
+        img.onerror = () => {
+            document.getElementById('status').innerText = "Error: Failed to load 'sprites.png'. Check filename or folder.";
+        };
+    </script>
+</body>
+
+</html>

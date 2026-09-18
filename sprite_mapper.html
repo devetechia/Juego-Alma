@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Herramienta de Recorte de Sprites</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #canvas-container {
+            position: relative;
+            border: 2px solid #555;
+            margin-top: 10px;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #output {
+            width: 80%;
+            height: 100px;
+            background: #111;
+            color: #0f0;
+            border: 1px solid #444;
+            margin-top: 20px;
+            font-family: monospace;
+            padding: 10px;
+        }
+
+        .controls {
+            margin: 10px;
+            background: #333;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #ff6b81;
+        }
+
+        label {
+            margin-right: 10px;
+        }
+
+        #current-action {
+            font-weight: bold;
+            color: #ffd700;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>1. Asistente de Sprites</h1>
+    <div class="controls">
+        <p>Tu imagen no es una cuadrícula perfecta, así que vamos a "recortar" manualmente las acciones.</p>
+        <p>Haz clic y arrastra sobre la imagen para marcar:</p>
+        <label><input type="radio" name="action" value="IDLE" checked> Quieto (Idle)</label>
+        <label><input type="radio" name="action" value="RUN"> Correr (Run)</label>
+        <label><input type="radio" name="action" value="JUMP"> Saltar (Jump)</label>
+        <button onclick="generateCode()">2. ¡Generar Código!</button>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="editorCanvas"></canvas>
+    </div>
+
+    <textarea id="output" placeholder="Aquí aparecerá el código mágico..."></textarea>
+
+    <script>
+        const canvas = document.getElementById('editorCanvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.src = 'sprites.png'; // Must match file name
+
+        let regions = { 'IDLE': null, 'RUN': null, 'JUMP': null };
+        let isDragging = false;
+        let startX, startY;
+        let currentRect = null;
+
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            draw();
+        };
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            // Draw overlay for darkness
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw regions
+            for (let key in regions) {
+                const r = regions[key];
+                if (r) {
+                    // Cut out hole
+                    ctx.drawImage(img, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+                    // Border
+                    ctx.strokeStyle = '#0f0';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(r.x, r.y, r.w, r.h);
+                    // Label
+                    ctx.fillStyle = '#0f0';
+                    ctx.font = '14px sans-serif';
+                    ctx.fillText(key, r.x, r.y - 5);
+                }
+            }
+
+            if (currentRect) {
+                ctx.strokeStyle = '#fff'; // Dragging color
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(currentRect.x, currentRect.y, currentRect.w, currentRect.h);
+                ctx.setLineDash([]);
+            }
+        }
+
+        function getSelectedAction() {
+            return document.querySelector('input[name="action"]:checked').value;
+        }
+
+        canvas.addEventListener('mousedown', e => {
+            const rect = canvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            isDragging = true;
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            currentRect = {
+                x: startX,
+                y: startY,
+                w: mouseX - startX,
+                h: mouseY - startY
+            };
+            draw();
+        });
+
+        canvas.addEventListener('mouseup', e => {
+            if (!isDragging) return;
+            isDragging = false;
+            if (currentRect && Math.abs(currentRect.w) > 5) {
+                // Normalize rect (handle negative width/height)
+                const r = {
+                    x: currentRect.w > 0 ? currentRect.x : currentRect.x + currentRect.w,
+                    y: currentRect.h > 0 ? currentRect.y : currentRect.y + currentRect.h,
+                    w: Math.abs(currentRect.w),
+                    h: Math.abs(currentRect.h)
+                };
+                regions[getSelectedAction()] = r;
+                currentRect = null;
+                draw();
+            }
+        });
+
+        function generateCode() {
+            const code = JSON.stringify(regions, null, 2);
+            document.getElementById('output').value = `// COPIA ESTO EN GAME.JS (LINEA ~179)\nthis.spriteMap = ${code};`;
+            alert("¡Código generado! Copialo del cuadro negro abajo.");
+        }
+    </script>
+</body>
+
+</html>

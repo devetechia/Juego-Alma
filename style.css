@@ -1,0 +1,133 @@
+:root {
+    --bg-color: #1a1a2e;
+    --accent-color: #e94560;
+    --text-color: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+    touch-action: none;
+    user-select: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Press Start 2P', cursive;
+    /* Retro font for everything */
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 1280px;
+    max-height: 720px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* UI Overlays */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(26, 26, 46, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    text-align: center;
+}
+
+.overlay h1 {
+    font-size: 3rem;
+    color: var(--accent-color);
+    text-shadow: 4px 4px #000;
+    margin-bottom: 20px;
+}
+
+.overlay p {
+    font-size: 1.2rem;
+    line-height: 2;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+#game-over-screen,
+#loading-screen {
+    display: none;
+    /* Hidden by default */
+}
+
+/* Mobile Controls */
+#mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    height: 150px;
+    display: none;
+    pointer-events: none;
+    padding: 0 40px;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+}
+
+@media (max-width: 1024px) {
+    /* Only show if game is running, handled by JS */
+}
+
+.control-btn {
+    pointer-events: auto;
+    width: 80px;
+    height: 80px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    color: white;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+    outline: none;
+}
+
+.control-btn:active {
+    background-color: rgba(233, 69, 96, 0.5);
+    transform: scale(0.95);
+}
+
+#dpad {
+    display: flex;
+    gap: 20px;
+}

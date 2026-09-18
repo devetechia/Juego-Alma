@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Hero Bros</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Mobile Controls -->
+        <div id="mobile-controls">
+            <div id="dpad">
+                <button id="btn-left" class="control-btn">←</button>
+                <button id="btn-right" class="control-btn">→</button>
+            </div>
+            <div id="action-buttons">
+                <button id="btn-jump" class="control-btn">A</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+        <h1>SUPER HERO BROS</h1>
+        <p>PRESS JUMP / TOUCH TO START</p>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="overlay">
+        <h1>GAME OVER</h1>
+        <p>RETRY?</p>
+    </div>
+
+    <div id="loading-screen" class="overlay" style="display:flex;">
+        <h1>LOADING...</h1>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+
+</html>
