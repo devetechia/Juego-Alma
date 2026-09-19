@@ -1,3 +1,19 @@
+/**
+ * Controles táctiles por gestos, sin botones en pantalla.
+ *
+ * Esquema (pensado para una niña de 6 años con la tablet en horizontal):
+ *   - Mantener pulsada la MITAD DERECHA   -> avanza (hacia la derecha)
+ *   - Mantener pulsada la MITAD IZQUIERDA -> retrocede (hacia la izquierda)
+ *   - Deslizar el dedo hacia ARRIBA       -> salta
+ *   - Un segundo dedo, en cualquier sitio -> salta (pulgar de apoyo)
+ *
+ * El primer dedo que toca la pantalla se queda con el movimiento; el segundo solo salta,
+ * así que apoyar el pulgar no cambia la dirección.
+ *
+ * `jumpPressed` es un aviso de un solo uso: lo consume Player.update() cuando lo lee.
+ * No se apaga con temporizadores, para que no se pierda ningún salto si el navegador
+ * va justo de rendimiento.
+ */
 export class TouchControls {
     constructor(scene) {
         this.scene = scene;
@@ -6,116 +22,120 @@ export class TouchControls {
         this.jumpPressed = false;
         this.jumpHeld = false;
         this.crouch = false;
-        this.startPressed = false;
 
-        this.createButtons();
-        this.setupEvents();
+        this.principal = null;          // dedo que manda en el movimiento
+        this.secundarios = 0;           // dedos de apoyo (saltan)
+        this.startY = 0;
+        this.yaDeslizo = false;
+
+        this.setupGestureEvents();
     }
 
-    createButtons() {
-        const width = this.scene.scale.width;
-        const height = this.scene.scale.height;
-        const btnSize = Math.min(88, width / 7);
-        const margin = 22;
-        const bottomMargin = 34;
-        const S = btnSize / 128; // los PNG de botón son 128x128
+    setupGestureEvents() {
+        const canvas = this.scene.sys.game.canvas;
+        this.canvas = canvas;
 
-        // Izquierda
-        this.btnLeft = this.scene.add.image(margin + btnSize / 2, height - bottomMargin - btnSize / 2, 'btn-left')
-            .setScale(S).setScrollFactor(0).setDepth(100).setAlpha(0.75)
-            .setInteractive({ useHandCursor: false });
+        this.handlers = {
+            touchstart: (e) => this.handleTouchStart(e),
+            touchmove: (e) => this.handleTouchMove(e),
+            touchend: (e) => this.handleTouchEnd(e),
+            touchcancel: (e) => this.handleTouchEnd(e),
+            mousedown: (e) => this.handleMouseDown(e),
+            mouseup: (e) => this.handleMouseUp(e),
+            mouseleave: (e) => this.handleMouseUp(e),
+        };
 
-        // Derecha
-        this.btnRight = this.scene.add.image(margin * 2 + btnSize * 1.5, height - bottomMargin - btnSize / 2, 'btn-right')
-            .setScale(S).setScrollFactor(0).setDepth(100).setAlpha(0.75)
-            .setInteractive({ useHandCursor: false });
+        canvas.addEventListener('touchstart', this.handlers.touchstart, { passive: false });
+        canvas.addEventListener('touchmove', this.handlers.touchmove, { passive: false });
+        canvas.addEventListener('touchend', this.handlers.touchend, { passive: false });
+        canvas.addEventListener('touchcancel', this.handlers.touchcancel, { passive: false });
 
-        // Salto (derecha)
-        this.btnJump = this.scene.add.image(width - margin - btnSize / 2, height - bottomMargin - btnSize / 2, 'btn-jump')
-            .setScale(S).setScrollFactor(0).setDepth(100).setAlpha(0.85)
-            .setInteractive({ useHandCursor: false });
-
-        // Agacharse (encima del salto)
-        this.btnCrouch = this.scene.add.image(width - margin - btnSize / 2, height - bottomMargin * 2 - btnSize * 1.5, 'btn-crouch')
-            .setScale(S).setScrollFactor(0).setDepth(100).setAlpha(0.7)
-            .setInteractive({ useHandCursor: false });
-
-        // Empezar ocultos (se muestran según el tamaño de pantalla)
-        this.btnSize = btnSize;
-        this.updateVisibility(this.scene.cameras.main);
+        canvas.addEventListener('mousedown', this.handlers.mousedown);
+        canvas.addEventListener('mouseup', this.handlers.mouseup);
+        canvas.addEventListener('mouseleave', this.handlers.mouseleave);
     }
 
-    setupEvents() {
-        // Left button
-        this.btnLeft.on('pointerdown', () => { this.left = true; });
-        this.btnLeft.on('pointerup', () => { this.left = false; });
-        this.btnLeft.on('pointerout', () => { this.left = false; });
-
-        // Right button
-        this.btnRight.on('pointerdown', () => { this.right = true; });
-        this.btnRight.on('pointerup', () => { this.right = false; });
-        this.btnRight.on('pointerout', () => { this.right = false; });
-
-        // Jump button
-        this.btnJump.on('pointerdown', () => {
-            this.jumpPressed = true;
-            this.jumpHeld = true;
-            // Reset jumpPressed after one frame
-            this.scene.time.delayedCall(16, () => { this.jumpPressed = false; });
-        });
-        this.btnJump.on('pointerup', () => { this.jumpHeld = false; });
-        this.btnJump.on('pointerout', () => { this.jumpHeld = false; });
-
-        // Crouch button
-        this.btnCrouch.on('pointerdown', () => { this.crouch = true; });
-        this.btnCrouch.on('pointerup', () => { this.crouch = false; });
-        this.btnCrouch.on('pointerout', () => { this.crouch = false; });
-
-        // Handle window resize
-        this.scene.scale.on('resize', (gameSize) => {
-            this.repositionButtons(gameSize);
-        });
+    /** Mitad de la pantalla en la que ha caído el dedo. */
+    lado(clientX) {
+        const rect = this.canvas.getBoundingClientRect();
+        return (clientX - rect.left) < rect.width / 2 ? 'izquierda' : 'derecha';
     }
 
-    repositionButtons(gameSize) {
-        const width = gameSize.width;
-        const height = gameSize.height;
-        const btnSize = Math.min(88, width / 7);
-        const margin = 22;
-        const bottomMargin = 34;
-        const S = btnSize / 128;
-
-        this.btnLeft.setPosition(margin + btnSize / 2, height - bottomMargin - btnSize / 2);
-        this.btnRight.setPosition(margin * 2 + btnSize * 1.5, height - bottomMargin - btnSize / 2);
-        this.btnJump.setPosition(width - margin - btnSize / 2, height - bottomMargin - btnSize / 2);
-        this.btnCrouch.setPosition(width - margin - btnSize / 2, height - bottomMargin * 2 - btnSize * 1.5);
-
-        [this.btnLeft, this.btnRight, this.btnJump, this.btnCrouch].forEach(btn => btn.setScale(S));
-    }
-
-    updateVisibility(camera) {
-        // OJO: scale.width es la resolución interna del juego (1280), no el tamaño CSS.
-        // Hay que mirar si el dispositivo tiene pantalla táctil (móvil/tablet).
-        const isTouch = this.scene.sys.game.device.input.touch || window.innerWidth <= 1024;
-        const visible = isTouch && this.scene.scene.key === 'GameScene';
-
-        this.btnLeft.setVisible(visible);
-        this.btnRight.setVisible(visible);
-        this.btnJump.setVisible(visible);
-        this.btnCrouch.setVisible(visible);
-
-        if (!visible) {
-            this.left = false;
-            this.right = false;
-            this.jumpPressed = false;
-            this.jumpHeld = false;
-            this.crouch = false;
+    handleTouchStart(e) {
+        e.preventDefault();
+        for (const touch of e.changedTouches) {
+            if (this.principal === null) {
+                this.principal = touch.identifier;
+                this.startY = touch.clientY;
+                this.yaDeslizo = false;
+                const lado = this.lado(touch.clientX);
+                this.right = lado === 'derecha';
+                this.left = !this.right;
+            } else {
+                this.secundarios++;
+                this.pedirSalto();
+            }
         }
     }
 
+    handleTouchMove(e) {
+        e.preventDefault();
+        for (const touch of e.changedTouches) {
+            if (touch.identifier === this.principal && !this.yaDeslizo) {
+                if ((this.startY - touch.clientY) > 40) {
+                    this.yaDeslizo = true;
+                    this.pedirSalto();
+                }
+            }
+        }
+    }
+
+    handleTouchEnd(e) {
+        e.preventDefault();
+        for (const touch of e.changedTouches) {
+            if (touch.identifier === this.principal) {
+                this.principal = null;
+                this.left = false;
+                this.right = false;
+                this.yaDeslizo = false;
+            } else if (this.secundarios > 0) {
+                this.secundarios--;
+            }
+        }
+        if (this.principal === null && this.secundarios === 0) this.jumpHeld = false;
+        if (this.secundarios === 0) this.jumpHeld = this.principal !== null ? this.jumpHeld : false;
+    }
+
+    pedirSalto() {
+        this.jumpPressed = true;        // lo consume Player.update()
+        this.jumpHeld = true;
+    }
+
+    // --- ratón: solo para probar en el ordenador, con la barra espaciadora para saltar ---
+    handleMouseDown(e) {
+        const derecha = this.lado(e.clientX) === 'derecha';
+        this.right = derecha;
+        this.left = !derecha;
+    }
+
+    handleMouseUp() {
+        this.left = false;
+        this.right = false;
+        this.jumpHeld = false;
+    }
+
+    updateVisibility() { /* sin botones que mostrar */ }
+
     destroy() {
-        [this.btnLeft, this.btnRight, this.btnJump, this.btnCrouch].forEach(btn => {
-            if (btn) btn.destroy();
-        });
+        if (!this.canvas || !this.handlers) return;
+        this.canvas.removeEventListener('touchstart', this.handlers.touchstart);
+        this.canvas.removeEventListener('touchmove', this.handlers.touchmove);
+        this.canvas.removeEventListener('touchend', this.handlers.touchend);
+        this.canvas.removeEventListener('touchcancel', this.handlers.touchcancel);
+        this.canvas.removeEventListener('mousedown', this.handlers.mousedown);
+        this.canvas.removeEventListener('mouseup', this.handlers.mouseup);
+        this.canvas.removeEventListener('mouseleave', this.handlers.mouseleave);
+        this.handlers = null;
+        this.canvas = null;
     }
 }

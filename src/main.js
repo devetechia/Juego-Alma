@@ -5,17 +5,21 @@ import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 
+/**
+ * Pantalla completa de verdad: el juego se dimensiona al tamaño real del navegador
+ * (modo RESIZE) en lugar de mantener 1280x720 con franjas negras. Cada escena coloca
+ * sus elementos en función del tamaño vivo de la ventana, y se recoloca al girar
+ * el dispositivo.
+ */
 const config = {
     type: Phaser.AUTO,
-    width: 1280,
-    height: 720,
     parent: 'game-container',
     backgroundColor: '#1a1a2e',
     scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1280,
-        height: 720,
+        width: window.innerWidth,
+        height: window.innerHeight,
     },
     physics: {
         default: 'arcade',

@@ -16,15 +16,15 @@ export class Player {
         // ---- Cuerpo físico (invisible) ----
         this.sprite = scene.physics.add.sprite(x, y, 'alma-poses', 0);
         this.sprite.setVisible(false);
-        this.sprite.setSize(64, 150);      // caja generosa, a la altura de los pies
-        this.sprite.setOffset(53, 54);
+        this.sprite.setSize(56, 150);      // caja generosa, con los pies exactamente en la línea de apoyo
+        this.sprite.setOffset(57, 46);     // celda 170x210: pies de la figura en y=196
         this.sprite.body.setCollideWorldBounds(true);
         this.sprite.body.setMaxVelocity(420, 1100);
         this.sprite.body.setDragX(800);
 
         // ---- Visual ----
         this.BASE_SCALE = 0.8;
-        this.FEET_FROM_CENTER = 99;        // px de textura del centro del frame a los pies
+        this.FEET_FROM_CENTER = 91;        // 196 (pies en la celda) - 105 (centro de la celda 210)
         this.visual = scene.add.sprite(x, y, 'alma-poses', 0);
         this.visual.setScale(this.BASE_SCALE);
         this.visual.setDepth(10);
@@ -98,10 +98,16 @@ export class Player {
         else this.coyoteTimer -= delta;
 
         // Entradas
-        const jumpPressed = Phaser.Input.Keyboard.JustDown(keySpace) ||
+        let jumpPressed = Phaser.Input.Keyboard.JustDown(keySpace) ||
             Phaser.Input.Keyboard.JustDown(keyW) ||
-            Phaser.Input.Keyboard.JustDown(cursors.up) ||
-            tc.jumpPressed;
+            Phaser.Input.Keyboard.JustDown(cursors.up);
+
+        // El aviso táctil es de un solo uso: se consume al leerlo, así no se pierde ningún
+        // salto aunque el navegador vaya lento entre fotogramas.
+        if (tc.jumpPressed) {
+            jumpPressed = true;
+            tc.jumpPressed = false;
+        }
 
         if (jumpPressed) this.jumpBufferTimer = this.JUMP_BUFFER;
         else this.jumpBufferTimer -= delta;

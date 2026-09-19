@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui">
     <meta name="description" content="Alma Aventura Familiar - Juego infantil para tablet">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,6 +29,11 @@
             height: 100%;
             overflow: hidden;
             background: #1a1a2e;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
 
         body {
@@ -41,8 +46,6 @@
         #game-container {
             width: 100%;
             height: 100%;
-            max-width: 1280px;
-            max-height: 720px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -54,7 +57,7 @@
             display: block;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
         }
 
         /* PWA install prompt */
@@ -217,7 +220,7 @@
 
         // Service worker registration
         if ('serviceWorker' in navigator) {
-            window.addEventEventListener('load', () => {
+            window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').catch(() => {});
             });
         }
@@ -227,13 +230,35 @@
             if (e.touches.length > 1) e.preventDefault();
         }, { passive: false });
 
-        // Prevent double-tap zoom
+        /* Prevent double-tap zoom */
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (e) => {
             const now = Date.now();
             if (now - lastTouchEnd <= 300) e.preventDefault();
             lastTouchEnd = now;
         }, { passive: false });
+
+        // Pantalla completa: en Android y iPad el navegador solo la concede tras un toque del
+        // usuario, asi que se pide en el primer toque. Si falla (algunos iPhone), no pasa nada.
+        let fullscreenPedida = false;
+        function pedirPantallaCompleta() {
+            if (fullscreenPedida) return;
+            fullscreenPedida = true;
+            const el = document.documentElement;
+            const peticion = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (peticion) {
+                try { peticion.call(el); } catch (e) { /* sin pantalla completa, se sigue jugando */ }
+            }
+            if (screen.orientation && screen.orientation.lock) {
+                try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* no disponible */ }
+            }
+        }
+        window.addEventListener('pointerdown', pedirPantallaCompleta, { once: true });
+
+        // Al girar el dispositivo, avisar a Phaser para que recalcule el tamano del lienzo
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 250);
+        });
     </script>
 </body>
 </html>

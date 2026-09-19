@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 
+/**
+ * Pantalla final. Se coloca segun el tamano vivo de la ventana y se recoloca al girar.
+ */
 export class GameOverScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameOverScene' });
@@ -11,50 +14,28 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     create() {
-        // Dark overlay
-        this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.8).setDepth(10);
+        const w = this.scale.width;
+        const h = this.scale.height;
 
-        if (this.won) {
-            // Victory
-            this.add.text(640, 200, '¡FELICIDADES ALMA!', {
-                fontFamily: 'Press Start 2P, cursive',
-                fontSize: '36px',
-                color: '#2ecc71',
-                stroke: '#000000',
-                strokeThickness: 5,
-            }).setOrigin(0.5).setDepth(20);
+        this.overlay = this.add.rectangle(0, 0, w, h, 0x000000, 0.82).setOrigin(0).setDepth(10);
 
-            this.add.text(640, 270, 'Has completado la aventura', {
-                fontFamily: 'Press Start 2P, cursive',
-                fontSize: '18px',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 3,
-            }).setOrigin(0.5).setDepth(20);
+        this.titulo = this.add.text(0, 0, this.won ? '¡FELICIDADES ALMA!' : 'GAME OVER', {
+            fontFamily: 'Press Start 2P, cursive',
+            fontSize: this.won ? '36px' : '48px',
+            color: this.won ? '#2ecc71' : '#e94560',
+            stroke: '#000000',
+            strokeThickness: 5,
+        }).setOrigin(0.5).setDepth(20);
 
-            // Celebration animation
-            this.createConfetti();
-        } else {
-            // Game Over
-            this.add.text(640, 200, 'GAME OVER', {
-                fontFamily: 'Press Start 2P, cursive',
-                fontSize: '48px',
-                color: '#e94560',
-                stroke: '#000000',
-                strokeThickness: 6,
-            }).setOrigin(0.5).setDepth(20);
+        this.subtitulo = this.add.text(0, 0, this.won ? 'Has completado la aventura' : 'Los familiares te atraparon...', {
+            fontFamily: 'Press Start 2P, cursive',
+            fontSize: '18px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(20);
 
-            this.add.text(640, 270, 'Los familiares te atraparon...', {
-                fontFamily: 'Press Start 2P, cursive',
-                fontSize: '16px',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 3,
-            }).setOrigin(0.5).setDepth(20);
-        }
-
-        // Score
-        this.add.text(640, 350, `ESTRELLAS: ${this.finalScore}`, {
+        this.scoreText = this.add.text(0, 0, `ESTRELLAS: ${this.finalScore}`, {
             fontFamily: 'Press Start 2P, cursive',
             fontSize: '28px',
             color: '#f1c40f',
@@ -62,8 +43,7 @@ export class GameOverScene extends Phaser.Scene {
             strokeThickness: 4,
         }).setOrigin(0.5).setDepth(20);
 
-        // Restart button
-        const restartBtn = this.add.text(640, 450, 'JUGAR DE NUEVO', {
+        this.restartBtn = this.add.text(0, 0, 'JUGAR DE NUEVO', {
             fontFamily: 'Press Start 2P, cursive',
             fontSize: '20px',
             color: '#ffffff',
@@ -72,64 +52,61 @@ export class GameOverScene extends Phaser.Scene {
             backgroundColor: '#e94560',
             padding: { x: 30, y: 15 },
         }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(20);
+        this.restartBtn.on('pointerdown', () => this.scene.start('GameScene'));
 
-        restartBtn.on('pointerover', () => {
-            restartBtn.setStyle({ backgroundColor: '#ff6b81', color: '#fff' });
-        });
-        restartBtn.on('pointerout', () => {
-            restartBtn.setStyle({ backgroundColor: '#e94560', color: '#fff' });
-        });
-        restartBtn.on('pointerdown', () => {
-            this.scene.start('GameScene');
-        });
-
-        // Menu button
-        const menuBtn = this.add.text(640, 530, 'MENÚ PRINCIPAL', {
+        this.menuBtn = this.add.text(0, 0, 'MENÚ PRINCIPAL', {
             fontFamily: 'Press Start 2P, cursive',
             fontSize: '18px',
             color: '#e94560',
             stroke: '#ffffff',
             strokeThickness: 2,
-            backgroundColor: 'transparent',
             padding: { x: 20, y: 10 },
         }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(20);
+        this.menuBtn.on('pointerdown', () => this.scene.start('MenuScene'));
 
-        menuBtn.on('pointerover', () => {
-            menuBtn.setStyle({ color: '#ff6b81', stroke: '#fff' });
-        });
-        menuBtn.on('pointerout', () => {
-            menuBtn.setStyle({ color: '#e94560', stroke: '#fff' });
-        });
-        menuBtn.on('pointerdown', () => {
-            this.scene.start('MenuScene');
-        });
-
-        // Keyboard shortcuts
         this.input.keyboard.once('keydown-SPACE', () => this.scene.start('GameScene'));
         this.input.keyboard.once('keydown-ENTER', () => this.scene.start('GameScene'));
         this.input.keyboard.once('keydown-ESC', () => this.scene.start('MenuScene'));
 
-        // Touch to restart
         this.input.once('pointerdown', (pointer) => {
-            if (!restartBtn.getBounds().contains(pointer.x, pointer.y) &&
-                !menuBtn.getBounds().contains(pointer.x, pointer.y)) {
+            if (!this.restartBtn.getBounds().contains(pointer.x, pointer.y) &&
+                !this.menuBtn.getBounds().contains(pointer.x, pointer.y)) {
                 this.scene.start('GameScene');
             }
         });
+
+        if (this.won) this.createConfetti();
+
+        this.layout();
+        this.scale.on('resize', this.layout, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
+    }
+
+    layout() {
+        const w = this.scale.width;
+        const h = this.scale.height;
+        const s = Phaser.Math.Clamp(Math.min(w / 1280, h / 720), 0.5, 1.5);
+
+        this.overlay.setSize(w, h);
+        this.titulo.setPosition(w / 2, h * 0.22).setScale(s);
+        this.subtitulo.setPosition(w / 2, h * 0.34).setScale(s);
+        this.scoreText.setPosition(w / 2, h * 0.47).setScale(s);
+        this.restartBtn.setPosition(w / 2, h * 0.63).setScale(s);
+        this.menuBtn.setPosition(w / 2, h * 0.77).setScale(s);
     }
 
     createConfetti() {
-        // Simple particle burst for celebration
-        for (let i = 0; i < 50; i++) {
-            const x = Phaser.Math.Between(100, 1180);
-            const y = Phaser.Math.Between(-100, 0);
+        const w = this.scale.width;
+        const h = this.scale.height;
+        for (let i = 0; i < 60; i++) {
+            const x = Phaser.Math.Between(0, w);
+            const y = Phaser.Math.Between(-h * 0.3, 0);
             const color = Phaser.Math.RND.pick([0xe94560, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xff6b81]);
-
             const particle = this.add.circle(x, y, Phaser.Math.Between(4, 10), color).setDepth(15);
 
             this.tweens.add({
                 targets: particle,
-                y: 800,
+                y: h + 80,
                 x: particle.x + Phaser.Math.Between(-200, 200),
                 rotation: Phaser.Math.FloatBetween(-4, 4),
                 alpha: 0,

@@ -27,6 +27,11 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.setBounds(0, 0, this.levelWidth, 720);
         this.cameras.main.setDeadzone(300, 200);
 
+        // El mundo físico debe medir exactamente lo que mide el nivel. Sin esto, en modo
+        // pantalla completa el límite del mundo se queda con el tamaño del arranque y el
+        // personaje se queda flotando sobre un suelo invisible.
+        this.physics.world.setBounds(0, 0, this.levelWidth, 720);
+
         // Create enemies
         this.createEnemies();
 
@@ -44,6 +49,7 @@ export class GameScene extends Phaser.Scene {
 
         // Create UI
         this.createUI();
+        this.createHints();
 
         // Chispas al recoger estrellas
         this.sparkParticles = this.add.particles(0, 0, 'star', {
@@ -61,26 +67,68 @@ export class GameScene extends Phaser.Scene {
         this.cameras.main.on('camerashake', () => {
             this.time.delayedCall(200, () => this.cameras.main.shake(100, 0.01));
         });
+
+        // Pantalla completa real: colocar todo segun el tamano vivo y recolocar al girar
+        this.layoutViewport();
+        this.scale.on('resize', this.layoutViewport, this);
+        this.events.once('shutdown', () => {
+            this.scale.off('resize', this.layoutViewport, this);
+            if (this.touchControls) this.touchControls.destroy();
+        });
     }
 
     createBackgrounds() {
-        // Paralaje de 3 capas + nubes a la deriva
+        // Paralaje de 3 capas + nubes a la deriva. Las capas se dimensionan al tamano
+        // real de la ventana en layoutViewport(), y se vuelven a dimensionar al girar.
         this.bgLayers = [
-            this.add.tileSprite(640, 360, 2560, 720, 'bg-layer-1').setScrollFactor(0).setDepth(-20),
-            this.add.tileSprite(640, 360, 2560, 720, 'bg-layer-2').setScrollFactor(0.15).setDepth(-19),
-            this.add.tileSprite(640, 360, 2560, 720, 'bg-layer-3').setScrollFactor(0.35).setDepth(-18),
+            this.add.tileSprite(0, 0, 100, 100, 'bg-layer-1').setOrigin(0).setScrollFactor(0).setDepth(-20),
+            this.add.tileSprite(0, 0, 100, 100, 'bg-layer-2').setOrigin(0).setScrollFactor(0).setDepth(-19),
+            this.add.tileSprite(0, 0, 100, 100, 'bg-layer-3').setOrigin(0).setScrollFactor(0).setDepth(-18),
         ];
 
         // Nubes: se mueven solas y además tienen paralaje
         this.clouds = [];
         for (let i = 0; i < 8; i++) {
-            const c = this.add.image(Phaser.Math.Between(0, this.levelWidth), Phaser.Math.Between(60, 260), 'cloud')
+            const c = this.add.image(Phaser.Math.Between(0, this.levelWidth), Phaser.Math.Between(60, 240), 'cloud')
                 .setScrollFactor(0.25)
                 .setDepth(-19)
                 .setAlpha(Phaser.Math.FloatBetween(0.55, 0.9))
                 .setScale(Phaser.Math.FloatBetween(0.6, 1.2));
             this.clouds.push(c);
         }
+    }
+
+    /**
+     * Coloca fondos y marcadores en funcion del tamano vivo de la ventana.
+     * En pantallas altas se aplica un zoom para que el mundo de 720 de alto encaje entero;
+     * en pantallas bajas (telefono en horizontal) se ve la franja del mundo donde esta Alma.
+     */
+    layoutViewport() {
+        const w = this.scale.width;
+        const h = this.scale.height;
+        const cam = this.cameras.main;
+
+        const zoom = h > 720 ? h / 720 : 1;
+        cam.setZoom(zoom);
+
+        // El limite del mundo fisico no debe cambiar al girar o redimensionar
+        this.physics.world.setBounds(0, 0, this.levelWidth, 720);
+
+        const vw = w / zoom;
+        const vh = h / zoom;
+
+        this.bgLayers.forEach(bg => bg.setPosition(0, 0).setSize(vw + 8, vh + 8));
+
+        const m = 16;
+        const k = 1 / zoom;                       // los objetos fijos a camara tambien escalan con el zoom
+        if (this.heartIcons) {
+            this.heartIcons.forEach((heart, i) => {
+                heart.setPosition((m + 22 + i * 42) * k, (m + 20) * k).setScale(1.2 * k);
+            });
+        }
+        if (this.scoreText) this.scoreText.setPosition((vw - m) * k, m * k).setScale(k).setOrigin(1, 0);
+        if (this.progressText) this.progressText.setPosition((vw / 2) * k, m * k).setScale(k).setOrigin(0.5, 0);
+        this.layoutHints();
     }
 
     createLevel() {
@@ -199,12 +247,12 @@ export class GameScene extends Phaser.Scene {
         // Lives (hearts)
         this.heartIcons = [];
         for (let i = 0; i < 3; i++) {
-            const heart = this.add.image(50 + i * 40, 50, 'heart-full').setScrollFactor(0).setDepth(100).setScale(1.2);
+            const heart = this.add.image(0, 0, 'heart-full').setScrollFactor(0).setDepth(100).setScale(1.2);
             this.heartIcons.push(heart);
         }
 
         // Score
-        this.scoreText = this.add.text(1150, 30, 'ESTRELLAS: 0', {
+        this.scoreText = this.add.text(0, 0, 'ESTRELLAS: 0', {
             fontFamily: 'Press Start 2P, cursive',
             fontSize: '16px',
             color: '#f1c40f',
@@ -213,13 +261,49 @@ export class GameScene extends Phaser.Scene {
         }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
         // Level progress
-        this.progressText = this.add.text(640, 30, 'PROGRESO: 0%', {
+        this.progressText = this.add.text(0, 0, 'PROGRESO: 0%', {
             fontFamily: 'Press Start 2P, cursive',
             fontSize: '16px',
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 3,
         }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
+    }
+
+    /** Aviso de controles al empezar: sin botones en pantalla hay que decir cómo se juega. */
+    createHints() {
+        const estilo = {
+            fontFamily: 'Press Start 2P, cursive',
+            fontSize: '13px',
+            color: '#ffffff',
+            backgroundColor: 'rgba(26,26,46,0.55)',
+            padding: { x: 12, y: 10 },
+            align: 'center',
+        };
+        this.hintIzq = this.add.text(0, 0, 'PULSA AQUI\nPARA IR ATRAS', estilo).setOrigin(0.5).setScrollFactor(0).setDepth(120).setAlpha(0.8);
+        this.hintDer = this.add.text(0, 0, 'PULSA AQUI\nPARA IR ADELANTE', estilo).setOrigin(0.5).setScrollFactor(0).setDepth(120).setAlpha(0.8);
+        this.hintSalto = this.add.text(0, 0, 'DESLIZA EL DEDO HACIA ARRIBA PARA SALTAR', estilo).setOrigin(0.5).setScrollFactor(0).setDepth(120).setAlpha(0.8);
+        this.hintTodo = [this.hintIzq, this.hintDer, this.hintSalto];
+
+        this.time.delayedCall(9000, () => this.ocultarAvisos());
+    }
+
+    layoutHints() {
+        if (!this.hintTodo) return;
+        const k = 1 / this.cameras.main.zoom;
+        const w = this.scale.width * k;
+        const h = this.scale.height * k;
+        const s = Phaser.Math.Clamp(Math.min(w / 1100, h / 620), 0.7, 1.15);
+        // Avisos pegados a los bordes: no tapan ni al personaje ni las plataformas centrales
+        this.hintIzq.setPosition(Math.max(90, w * 0.13), h - 30).setScale(s);
+        this.hintDer.setPosition(w - Math.max(90, w * 0.13), h - 30).setScale(s);
+        this.hintSalto.setPosition(w * 0.5, h * 0.2).setScale(s * 0.9);
+    }
+
+    ocultarAvisos() {
+        if (!this.hintTodo || this.avisosOcultos) return;
+        this.avisosOcultos = true;
+        this.tweens.add({ targets: this.hintTodo, alpha: 0, duration: 600 });
     }
 
     hitEnemy(player, enemy) {
@@ -325,6 +409,13 @@ export class GameScene extends Phaser.Scene {
         // Update progress
         const progress = Math.min(100, Math.round((this.player.sprite.x / this.levelWidth) * 100));
         this.progressText.setText(`PROGRESO: ${progress}%`);
+
+        // En cuanto la niña toca algo, los avisos desaparecen
+        const tc = this.touchControls || {};
+        if (!this.avisosOcultos && (tc.left || tc.right || tc.jumpHeld ||
+            this.cursors.left.isDown || this.cursors.right.isDown || this.keyA.isDown || this.keyD.isDown)) {
+            this.ocultarAvisos();
+        }
 
         // Check win condition
         if (this.player.sprite.x >= this.levelWidth - 200) {
